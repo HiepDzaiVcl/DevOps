@@ -29,36 +29,29 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/learnking-backend-net:latest
           echo "🟢 Docker image pushed successfully!"
 
-      # 4️⃣ SSH vào VPS để triển khai
-            - name: Deploy to VPS
+      # 4️⃣ SSH vào VPS để triển khai ứng dụng
+      - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
+          username: ubuntu                      # hoặc ${{ secrets.SERVER_USERNAME }} nếu bạn có lưu trong secrets
           key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
           script: |
             set -e
             echo "🚀 Deploying application on VPS..."
-            # 🧩 Kiểm tra & cài Docker Compose nếu chưa có
-            if ! command -v docker compose &> /dev/null; then
-              echo "🧩 Installing Docker Compose plugin..."
-              sudo apt update -y
-              sudo apt install ca-certificates curl gnupg -y
-              sudo install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              echo \
-                "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-                https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-                sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              sudo apt update -y
-              sudo apt install docker-compose-plugin -y
-            fi
-
             mkdir -p ~/app
             cd ~/app
             echo "${{ secrets.DOCKER_COMPOSE_FILE }}" > docker-compose.yml
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker image prune -f
-            echo "✅ Deployment completed successfully!"
 
+            # Đăng nhập Docker Hub trên VPS
+            docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
+
+            # Kéo và chạy container
+            docker-compose pull
+            docker-compose up -d --remove-orphans
+
+            # Dọn dẹp image cũ
+            docker image prune -f
+
+            echo "✅ Deployment completed successfully!"
